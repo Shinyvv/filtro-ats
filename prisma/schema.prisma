@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+}
+
+enum JobStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum CandidateStatus {
+  NEW
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  CONTACTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(ADMIN)
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  users     User[]
+  jobs      Job[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Job {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id])
+  title        String
+  description  String
+  requirements String
+  location     String
+  modality     String
+  contractType String
+  status       JobStatus @default(DRAFT)
+  candidates   Candidate[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model Candidate {
+  id                String          @id @default(cuid())
+  jobId             String
+  job               Job             @relation(fields: [jobId], references: [id])
+  fullName          String
+  email             String
+  phone             String
+  currentPosition   String
+  yearsOfExperience Int?
+  expectedSalary    Int?
+  availability      String?
+  cvFileName        String
+  cvFilePath        String
+  cvMimeType        String
+  cvText            String
+  aiScore           Int?
+  aiSummary         String?
+  status            CandidateStatus @default(NEW)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([jobId])
+  @@index([status])
+}
