@@ -85,6 +85,7 @@ model Candidate {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
+  @@unique([jobId, email])
   @@index([jobId])
   @@index([status])
 }
