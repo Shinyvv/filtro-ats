@@ -9,6 +9,8 @@ import { prisma } from "@/lib/prisma/prisma";
 
 import { applyToJobAction } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 type JobApplyPageProps = {
   params: Promise<{ id: string }> | { id: string };
   searchParams?:

@@ -6,6 +6,8 @@ import { requireUser } from "@/lib/auth/auth";
 import { getCompanyIdForUser } from "@/lib/company";
 import { prisma } from "@/lib/prisma/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const user = await requireUser();
   const companyId = await getCompanyIdForUser(user);

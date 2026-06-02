@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma/prisma";
 
 import { updateJobAction } from "../actions";
 
+export const dynamic = "force-dynamic";
+
 type EditJobPageProps = {
   params: Promise<{ id: string }> | { id: string };
 };

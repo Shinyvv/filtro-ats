@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma/prisma";
 
 import { closeJobAction } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 type JobDetailPageProps = {
   params: Promise<{ id: string }> | { id: string };
 };

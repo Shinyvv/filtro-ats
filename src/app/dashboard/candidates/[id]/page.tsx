@@ -9,6 +9,8 @@ import { prisma } from "@/lib/prisma/prisma";
 
 import { updateCandidateStatusAction } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 type CandidateDetailPageProps = {
   params: Promise<{ id: string }> | { id: string };
 };

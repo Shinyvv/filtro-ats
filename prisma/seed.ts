@@ -1,7 +1,22 @@
+import "dotenv/config";
+
 import bcrypt from "bcryptjs";
 import { PrismaClient, JobStatus, UserRole } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not defined");
+}
+
+const adapter = new PrismaPg({
+  connectionString,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 async function main(): Promise<void> {
   const company = await prisma.company.upsert({
@@ -55,14 +70,15 @@ async function main(): Promise<void> {
       },
     });
   }
+
+  console.log("Seed ejecutado correctamente.");
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (error) => {
+  .catch((error) => {
     console.error(error);
-    await prisma.$disconnect();
     process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   });
