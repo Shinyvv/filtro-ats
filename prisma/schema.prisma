@@ -88,3 +88,23 @@ model Candidate {
   @@index([jobId])
   @@index([status])
 }
+
+model AiUsageLog {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  userId         String?
+  companyId      String?
+  jobId          String?
+  candidateId    String?
+  ip             String?
+  model          String
+  action         String
+  inputChars     Int      @default(0)
+  outputChars    Int      @default(0)
+  cvWasTruncated Boolean  @default(false)
+  status         String
+  errorMessage   String?
+
+  @@index([createdAt])
+  @@index([jobId, createdAt])
+}
