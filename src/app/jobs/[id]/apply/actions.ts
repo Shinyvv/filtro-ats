@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { Prisma } from "@prisma/client";
+
 import { evaluateCandidate } from "@/lib/ai/candidate-evaluator";
 import { logAiUsage } from "@/lib/ai/usage-logger";
 import { checkAiDailyQuota } from "@/lib/ai/usage-quota";
@@ -73,6 +75,20 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
     redirect(`/jobs/${jobId}/apply?error=validation`);
   }
 
+  // Normalizar email para deduplicar (minusculas + sin espacios).
+  const email = parsed.data.email.trim().toLowerCase();
+
+  // 2a) ANTI-DUPLICADO: si ya postulo a este cargo, cortar lo antes posible
+  // (antes de guardar archivo, parsear CV o llamar a IA/Gemini).
+  const existingCandidate = await prisma.candidate.findFirst({
+    where: { jobId: job.id, email },
+    select: { id: true },
+  });
+
+  if (existingCandidate) {
+    redirect(`/jobs/${job.id}/apply/success?duplicate=1`);
+  }
+
   // 2b) Validacion adicional de archivo (defensa en profundidad).
   const fileValidation = localStorageProvider.validateFile(parsed.data.cvFile);
   if (!fileValidation.valid) {
@@ -121,25 +137,40 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
     },
   });
 
-  const candidate = await prisma.candidate.create({
-    data: {
-      jobId: job.id,
-      fullName: parsed.data.fullName,
-      email: parsed.data.email,
-      phone: parsed.data.phone,
-      currentPosition: parsed.data.currentPosition,
-      yearsOfExperience: parsed.data.yearsOfExperience,
-      expectedSalary: parsed.data.expectedSalary,
-      availability: parsed.data.availability,
-      cvFileName: savedFile.fileName,
-      cvFilePath: savedFile.filePath,
-      cvMimeType: savedFile.mimeType,
-      cvText: cvParsed.text,
-      aiScore: evaluation.score,
-      aiSummary: evaluation.summary,
-      status: CandidateStatus.NEW,
-    },
-  });
+  let candidate;
+
+  try {
+    candidate = await prisma.candidate.create({
+      data: {
+        jobId: job.id,
+        fullName: parsed.data.fullName,
+        email,
+        phone: parsed.data.phone,
+        currentPosition: parsed.data.currentPosition,
+        yearsOfExperience: parsed.data.yearsOfExperience,
+        expectedSalary: parsed.data.expectedSalary,
+        availability: parsed.data.availability,
+        cvFileName: savedFile.fileName,
+        cvFilePath: savedFile.filePath,
+        cvMimeType: savedFile.mimeType,
+        cvText: cvParsed.text,
+        aiScore: evaluation.score,
+        aiSummary: evaluation.summary,
+        status: CandidateStatus.NEW,
+      },
+    });
+  } catch (error) {
+    // Condicion de carrera: dos requests casi simultaneas pasan el findFirst
+    // pero PostgreSQL bloquea el segundo via @@unique([jobId, email]).
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      redirect(`/jobs/${job.id}/apply/success?duplicate=1`);
+    }
+
+    throw error;
+  }
 
   // 6) REGISTRO de uso IA (no rompe el flujo si falla).
   await logAiUsage({

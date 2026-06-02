@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { prisma } from "@/lib/prisma/prisma";
 
 import { applyToJobAction } from "./actions";
+import { SubmitButton } from "./submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -146,7 +146,7 @@ export default async function JobApplyPage({
               </p>
             ) : null}
 
-            <Button type="submit">Enviar postulacion</Button>
+            <SubmitButton />
           </form>
         </CardContent>
       </Card>
