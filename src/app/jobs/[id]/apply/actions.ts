@@ -1,12 +1,17 @@
 "use server";
 
 import { CandidateStatus } from "@prisma/client";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { evaluateCandidate } from "@/lib/ai/candidate-evaluator";
+import { logAiUsage } from "@/lib/ai/usage-logger";
+import { checkAiDailyQuota } from "@/lib/ai/usage-quota";
+import { normalizeCvText } from "@/lib/cv/cv-text";
 import { parseCvFile } from "@/lib/cv/cv-parser";
 import { prisma } from "@/lib/prisma/prisma";
+import { checkApplyRateLimit } from "@/lib/ratelimit/rate-limiter";
 import { localStorageProvider } from "@/lib/storage/local-storage-provider";
 import { candidateApplySchema } from "@/lib/validations/candidate.schema";
 
@@ -23,7 +28,24 @@ function parseOptionalNumber(value: FormDataEntryValue | null): number | undefin
   return parsed;
 }
 
+async function getClientIp(): Promise<string> {
+  const headerList = await headers();
+  const forwarded = headerList.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0]?.trim() || "unknown";
+  }
+  return headerList.get("x-real-ip")?.trim() || "unknown";
+}
+
 export async function applyToJobAction(jobId: string, formData: FormData): Promise<never> {
+  const ip = await getClientIp();
+
+  // 1) RATE LIMIT antes de cualquier trabajo costoso o llamada al LLM.
+  const rl = checkApplyRateLimit(ip, jobId);
+  if (!rl.allowed) {
+    redirect(`/jobs/${jobId}/apply?error=rate_limit`);
+  }
+
   const job = await prisma.job.findUnique({
     where: { id: jobId },
   });
@@ -35,6 +57,7 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
   const rawFile = formData.get("cvFile");
   const cvFile = rawFile instanceof File ? rawFile : undefined;
 
+  // 2) VALIDACION Zod (incluye MIME y tamano del archivo).
   const parsed = candidateApplySchema.safeParse({
     fullName: formData.get("fullName"),
     email: formData.get("email"),
@@ -50,6 +73,7 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
     redirect(`/jobs/${jobId}/apply?error=validation`);
   }
 
+  // 2b) Validacion adicional de archivo (defensa en profundidad).
   const fileValidation = localStorageProvider.validateFile(parsed.data.cvFile);
   if (!fileValidation.valid) {
     redirect(`/jobs/${jobId}/apply?error=file`);
@@ -61,11 +85,33 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
     mimeType: savedFile.mimeType,
   });
 
+  // 3) NORMALIZACION + TRUNCADO del texto del CV antes del modelo.
+  const normalizedCv = normalizeCvText(cvParsed.text);
+
+  // 4) CUOTA diaria (por job y global) antes de llamar a Gemini.
+  const quota = await checkAiDailyQuota(job.id);
+  if (!quota.allowed) {
+    await logAiUsage({
+      jobId: job.id,
+      companyId: job.companyId,
+      ip,
+      model: "none",
+      action: "apply_evaluate",
+      inputChars: normalizedCv.finalChars,
+      outputChars: 0,
+      cvWasTruncated: normalizedCv.wasTruncated,
+      status: "error",
+      errorMessage: `quota_exceeded:${quota.reason ?? "unknown"}`,
+    });
+    redirect(`/jobs/${jobId}/apply?error=quota`);
+  }
+
+  // 5) Evaluacion IA (con timeout/retry y fallback dentro del evaluador).
   const evaluation = await evaluateCandidate({
     jobTitle: job.title,
     jobDescription: job.description,
     jobRequirements: job.requirements,
-    candidateCvText: cvParsed.text,
+    candidateCvText: normalizedCv.text,
     candidateFormData: {
       fullName: parsed.data.fullName,
       currentPosition: parsed.data.currentPosition,
@@ -75,7 +121,7 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
     },
   });
 
-  await prisma.candidate.create({
+  const candidate = await prisma.candidate.create({
     data: {
       jobId: job.id,
       fullName: parsed.data.fullName,
@@ -93,6 +139,21 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
       aiSummary: evaluation.summary,
       status: CandidateStatus.NEW,
     },
+  });
+
+  // 6) REGISTRO de uso IA (no rompe el flujo si falla).
+  await logAiUsage({
+    jobId: job.id,
+    companyId: job.companyId,
+    candidateId: candidate.id,
+    ip,
+    model: evaluation.model,
+    action: "apply_evaluate",
+    inputChars: normalizedCv.finalChars,
+    outputChars: evaluation.outputChars,
+    cvWasTruncated: normalizedCv.wasTruncated,
+    status: evaluation.status,
+    errorMessage: evaluation.errorMessage,
   });
 
   revalidatePath("/dashboard");
