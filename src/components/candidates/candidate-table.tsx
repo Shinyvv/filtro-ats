@@ -32,7 +32,7 @@ function getStatusLabel(status: CandidateStatus): string {
     case CandidateStatus.NEW:
       return "Nuevo";
     case CandidateStatus.REVIEWING:
-      return "En revision";
+      return "En revisión";
     case CandidateStatus.SHORTLISTED:
       return "Preseleccionado";
     case CandidateStatus.REJECTED:
@@ -70,11 +70,11 @@ export function CandidateTable({ candidates }: CandidateTableProps) {
         <TableRow>
           <TableHead>Nombre</TableHead>
           <TableHead>Email</TableHead>
-          <TableHead>Telefono</TableHead>
+          <TableHead>Teléfono</TableHead>
           <TableHead>Experiencia</TableHead>
           <TableHead>Score IA</TableHead>
           <TableHead>Estado</TableHead>
-          <TableHead>Postulacion</TableHead>
+          <TableHead>Postulación</TableHead>
           <TableHead className="text-right">Acciones</TableHead>
         </TableRow>
       </TableHeader>
@@ -86,7 +86,7 @@ export function CandidateTable({ candidates }: CandidateTableProps) {
             <TableCell>{candidate.phone}</TableCell>
             <TableCell>
               {candidate.yearsOfExperience !== null
-                ? `${candidate.yearsOfExperience} anos`
+                ? `${candidate.yearsOfExperience} años`
                 : "No informado"}
             </TableCell>
             <TableCell>{candidate.aiScore ?? "-"}</TableCell>

@@ -22,7 +22,7 @@ export function CandidateStatusSelect({
         <Label htmlFor="status">Estado del postulante</Label>
         <Select id="status" name="status" defaultValue={currentStatus}>
           <option value={CandidateStatus.NEW}>Nuevo</option>
-          <option value={CandidateStatus.REVIEWING}>En revision</option>
+          <option value={CandidateStatus.REVIEWING}>En revisión</option>
           <option value={CandidateStatus.SHORTLISTED}>Preseleccionado</option>
           <option value={CandidateStatus.CONTACTED}>Contactado</option>
           <option value={CandidateStatus.REJECTED}>Rechazado</option>

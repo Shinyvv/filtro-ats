@@ -10,6 +10,14 @@ const items = [
   { href: "/dashboard/jobs", label: "Ofertas" },
 ];
 
+function isActivePath(pathname: string, href: string): boolean {
+  if (href === "/dashboard") {
+    return pathname === href;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Sidebar() {
   const pathname = usePathname();
 
@@ -23,7 +31,7 @@ export function Sidebar() {
       </div>
       <nav className="grid gap-1 px-3 pb-4">
         {items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = isActivePath(pathname, item.href);
           return (
             <Link
               key={item.href}

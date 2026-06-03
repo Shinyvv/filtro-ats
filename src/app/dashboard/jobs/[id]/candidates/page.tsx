@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CandidateTable } from "@/components/candidates/candidate-table";
+import { JobDetailNav } from "@/components/jobs/job-detail-nav";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/auth";
 import { getCompanyIdForUser } from "@/lib/company";
@@ -52,6 +53,8 @@ export default async function JobCandidatesPage({
 
   return (
     <div className="space-y-4">
+      <JobDetailNav jobId={job.id} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Postulantes</h1>

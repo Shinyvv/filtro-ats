@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { JobDetailNav } from "@/components/jobs/job-detail-nav";
 import { requireUser } from "@/lib/auth/auth";
 import { getCompanyIdForUser } from "@/lib/company";
 import { prisma } from "@/lib/prisma/prisma";
@@ -49,6 +50,8 @@ export default async function JobDetailPage({ params }: JobDetailPageProps) {
 
   return (
     <div className="space-y-4">
+      <JobDetailNav jobId={job.id} />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">{job.title}</h1>

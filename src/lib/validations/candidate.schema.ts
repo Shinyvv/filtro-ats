@@ -13,11 +13,11 @@ export const candidateApplySchema = z.object({
     .string()
     .min(2, "El nombre completo es obligatorio.")
     .max(120, "El nombre no puede superar 120 caracteres."),
-  email: z.string().email("Ingresa un email valido."),
+  email: z.string().email("Ingresa un email válido."),
   phone: z
     .string()
-    .min(6, "El telefono es obligatorio.")
-    .max(30, "El telefono no puede superar 30 caracteres."),
+    .min(6, "El teléfono es obligatorio.")
+    .max(30, "El teléfono no puede superar 30 caracteres."),
   currentPosition: z
     .string()
     .min(2, "El cargo actual es obligatorio.")
@@ -29,9 +29,9 @@ export const candidateApplySchema = z.object({
     .pipe(
       z
         .number()
-        .int("Los anos de experiencia deben ser un numero entero.")
-        .min(0, "Los anos de experiencia no pueden ser negativos.")
-        .max(60, "Los anos de experiencia parecen invalidos.")
+        .int("Los años de experiencia deben ser un número entero.")
+        .min(0, "Los años de experiencia no pueden ser negativos.")
+        .max(60, "Los años de experiencia parecen inválidos.")
         .optional(),
     ),
   expectedSalary: z
@@ -41,7 +41,7 @@ export const candidateApplySchema = z.object({
     .pipe(
       z
         .number()
-        .int("El sueldo esperado debe ser un numero entero.")
+        .int("El sueldo esperado debe ser un número entero.")
         .min(0, "El sueldo esperado no puede ser negativo.")
         .max(999999999, "El sueldo esperado es demasiado alto.")
         .optional(),
