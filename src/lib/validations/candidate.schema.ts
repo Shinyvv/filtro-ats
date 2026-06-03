@@ -68,8 +68,36 @@ const candidateStatusValues = Object.values(CandidateStatus) as [
   ...CandidateStatus[],
 ];
 
+export const candidateIdSchema = z
+  .string()
+  .min(1, "Candidate id is required")
+  .max(100, "Candidate id is invalid");
+
 export const candidateStatusSchema = z.object({
   status: z.enum(candidateStatusValues),
+});
+
+export const updateCandidateStatusSchema = z.object({
+  candidateId: candidateIdSchema,
+  status: z.enum(candidateStatusValues),
+});
+
+export const updateCandidateInternalNotesSchema = z.object({
+  candidateId: candidateIdSchema,
+  internalNotes: z
+    .string()
+    .trim()
+    .max(2000, "Las notas internas no pueden superar 2000 caracteres.")
+    .optional(),
+});
+
+export const candidateFiltersSchema = z.object({
+  status: z.enum(candidateStatusValues).optional(),
+  q: z
+    .string()
+    .trim()
+    .max(120, "La búsqueda no puede superar 120 caracteres.")
+    .optional(),
 });
 
 export type CandidateApplyInput = z.infer<typeof candidateApplySchema>;

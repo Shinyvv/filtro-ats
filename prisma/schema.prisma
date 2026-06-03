@@ -22,6 +22,7 @@ enum CandidateStatus {
   SHORTLISTED
   REJECTED
   CONTACTED
+  HIRED
 }
 
 model User {
@@ -82,6 +83,7 @@ model Candidate {
   aiScore           Int?
   aiSummary         String?
   status            CandidateStatus @default(NEW)
+  internalNotes     String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 

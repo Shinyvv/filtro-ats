@@ -2,12 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CandidateDetailCard } from "@/components/candidates/candidate-detail-card";
-import { CandidateStatusSelect } from "@/components/candidates/candidate-status-select";
 import { requireUser } from "@/lib/auth/auth";
 import { getCompanyIdForUser } from "@/lib/company";
 import { prisma } from "@/lib/prisma/prisma";
-
-import { updateCandidateStatusAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +26,24 @@ export default async function CandidateDetailPage({
         companyId,
       },
     },
-    include: {
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      currentPosition: true,
+      yearsOfExperience: true,
+      expectedSalary: true,
+      availability: true,
+      cvText: true,
+      cvFileName: true,
+      cvMimeType: true,
+      internalNotes: true,
+      aiSummary: true,
+      aiScore: true,
+      status: true,
+      createdAt: true,
+      jobId: true,
       job: {
         select: {
           id: true,
@@ -58,14 +72,7 @@ export default async function CandidateDetailPage({
         </Link>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-        <CandidateDetailCard candidate={candidate} />
-        <CandidateStatusSelect
-          candidateId={candidate.id}
-          currentStatus={candidate.status}
-          action={updateCandidateStatusAction}
-        />
-      </div>
+      <CandidateDetailCard candidate={candidate} />
     </div>
   );
 }

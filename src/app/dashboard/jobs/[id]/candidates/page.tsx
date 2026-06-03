@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CandidateStatus, Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 
 import { CandidateTable } from "@/components/candidates/candidate-table";
@@ -7,17 +8,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/auth";
 import { getCompanyIdForUser } from "@/lib/company";
 import { prisma } from "@/lib/prisma/prisma";
+import { candidateFiltersSchema } from "@/lib/validations/candidate.schema";
 
 export const dynamic = "force-dynamic";
 
 type JobCandidatesPageProps = {
   params: Promise<{ id: string }> | { id: string };
+  searchParams?:
+    | Promise<{ status?: string; q?: string }>
+    | { status?: string; q?: string };
 };
 
 export default async function JobCandidatesPage({
   params,
+  searchParams,
 }: JobCandidatesPageProps) {
   const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const user = await requireUser();
   const companyId = await getCompanyIdForUser(user);
 
@@ -36,8 +43,29 @@ export default async function JobCandidatesPage({
     notFound();
   }
 
+  const parsedFilters = candidateFiltersSchema.safeParse({
+    status: resolvedSearchParams.status || undefined,
+    q: resolvedSearchParams.q || undefined,
+  });
+  const filters = parsedFilters.success ? parsedFilters.data : {};
+  const currentStatus = filters.status;
+  const currentQuery = filters.q;
+
+  const candidateWhere: Prisma.CandidateWhereInput = {
+    jobId: job.id,
+    ...(currentStatus ? { status: currentStatus } : {}),
+    ...(currentQuery
+      ? {
+          OR: [
+            { fullName: { contains: currentQuery, mode: "insensitive" } },
+            { email: { contains: currentQuery, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
   const candidates = await prisma.candidate.findMany({
-    where: { jobId: job.id },
+    where: candidateWhere,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -48,6 +76,7 @@ export default async function JobCandidatesPage({
       aiScore: true,
       status: true,
       createdAt: true,
+      cvFileName: true,
     },
   });
 
@@ -70,7 +99,12 @@ export default async function JobCandidatesPage({
 
       <Card>
         <CardContent className="p-0">
-          <CandidateTable candidates={candidates} />
+          <CandidateTable
+            candidates={candidates}
+            jobId={job.id}
+            currentStatus={currentStatus as CandidateStatus | undefined}
+            currentQuery={currentQuery}
+          />
         </CardContent>
       </Card>
     </div>

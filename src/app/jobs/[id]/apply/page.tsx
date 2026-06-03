@@ -31,6 +31,10 @@ function getErrorMessage(error: string | undefined): string | null {
     return "El archivo debe ser PDF o DOCX y no superar 5MB.";
   }
 
+  if (error === "closed") {
+    return "Esta oferta no está disponible para nuevas postulaciones.";
+  }
+
   return "No se pudo enviar la postulacion.";
 }
 

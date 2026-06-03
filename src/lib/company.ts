@@ -9,6 +9,8 @@ export async function getCompanyIdForUser(user: CompanyScopedUser): Promise<stri
     return user.companyId;
   }
 
+  // MVP/demo fallback: no tratar como frontera de seguridad multiempresa.
+  // Las acciones deben validar propiedad contra la entidad protegida.
   const company = await prisma.company.findFirst({
     orderBy: { createdAt: "asc" },
     select: { id: true },

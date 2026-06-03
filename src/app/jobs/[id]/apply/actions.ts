@@ -1,11 +1,9 @@
 "use server";
 
-import { CandidateStatus } from "@prisma/client";
+import { CandidateStatus, JobStatus, Prisma } from "@prisma/client";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-
-import { Prisma } from "@prisma/client";
 
 import { evaluateCandidate } from "@/lib/ai/candidate-evaluator";
 import { logAiUsage } from "@/lib/ai/usage-logger";
@@ -48,12 +46,15 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
     redirect(`/jobs/${jobId}/apply?error=rate_limit`);
   }
 
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
+  const job = await prisma.job.findFirst({
+    where: {
+      id: jobId,
+      status: JobStatus.ACTIVE,
+    },
   });
 
   if (!job) {
-    redirect("/login");
+    redirect(`/jobs/${jobId}/apply?error=closed`);
   }
 
   const rawFile = formData.get("cvFile");
@@ -101,41 +102,8 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
     mimeType: savedFile.mimeType,
   });
 
-  // 3) NORMALIZACION + TRUNCADO del texto del CV antes del modelo.
+  // 3) NORMALIZACION + TRUNCADO del texto del CV antes de la evaluacion opcional.
   const normalizedCv = normalizeCvText(cvParsed.text);
-
-  // 4) CUOTA diaria (por job y global) antes de llamar a Gemini.
-  const quota = await checkAiDailyQuota(job.id);
-  if (!quota.allowed) {
-    await logAiUsage({
-      jobId: job.id,
-      companyId: job.companyId,
-      ip,
-      model: "none",
-      action: "apply_evaluate",
-      inputChars: normalizedCv.finalChars,
-      outputChars: 0,
-      cvWasTruncated: normalizedCv.wasTruncated,
-      status: "error",
-      errorMessage: `quota_exceeded:${quota.reason ?? "unknown"}`,
-    });
-    redirect(`/jobs/${jobId}/apply?error=quota`);
-  }
-
-  // 5) Evaluacion IA (con timeout/retry y fallback dentro del evaluador).
-  const evaluation = await evaluateCandidate({
-    jobTitle: job.title,
-    jobDescription: job.description,
-    jobRequirements: job.requirements,
-    candidateCvText: normalizedCv.text,
-    candidateFormData: {
-      fullName: parsed.data.fullName,
-      currentPosition: parsed.data.currentPosition,
-      yearsOfExperience: parsed.data.yearsOfExperience,
-      expectedSalary: parsed.data.expectedSalary,
-      availability: parsed.data.availability,
-    },
-  });
 
   let candidate;
 
@@ -154,8 +122,6 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
         cvFilePath: savedFile.filePath,
         cvMimeType: savedFile.mimeType,
         cvText: cvParsed.text,
-        aiScore: evaluation.score,
-        aiSummary: evaluation.summary,
         status: CandidateStatus.NEW,
       },
     });
@@ -172,20 +138,76 @@ export async function applyToJobAction(jobId: string, formData: FormData): Promi
     throw error;
   }
 
-  // 6) REGISTRO de uso IA (no rompe el flujo si falla).
-  await logAiUsage({
-    jobId: job.id,
-    companyId: job.companyId,
-    candidateId: candidate.id,
-    ip,
-    model: evaluation.model,
-    action: "apply_evaluate",
-    inputChars: normalizedCv.finalChars,
-    outputChars: evaluation.outputChars,
-    cvWasTruncated: normalizedCv.wasTruncated,
-    status: evaluation.status,
-    errorMessage: evaluation.errorMessage,
-  });
+  try {
+    const quota = await checkAiDailyQuota(job.id);
+
+    if (!quota.allowed) {
+      await logAiUsage({
+        jobId: job.id,
+        companyId: job.companyId,
+        candidateId: candidate.id,
+        ip,
+        model: "none",
+        action: "apply_evaluate",
+        inputChars: normalizedCv.finalChars,
+        outputChars: 0,
+        cvWasTruncated: normalizedCv.wasTruncated,
+        status: "error",
+        errorMessage: `quota_exceeded:${quota.reason ?? "unknown"}`,
+      });
+    } else {
+      const evaluation = await evaluateCandidate({
+        jobTitle: job.title,
+        jobDescription: job.description,
+        jobRequirements: job.requirements,
+        candidateCvText: normalizedCv.text,
+        candidateFormData: {
+          fullName: parsed.data.fullName,
+          currentPosition: parsed.data.currentPosition,
+          yearsOfExperience: parsed.data.yearsOfExperience,
+          expectedSalary: parsed.data.expectedSalary,
+          availability: parsed.data.availability,
+        },
+      });
+
+      await prisma.candidate.update({
+        where: { id: candidate.id },
+        data: {
+          aiScore: evaluation.score,
+          aiSummary: evaluation.summary,
+        },
+      });
+
+      await logAiUsage({
+        jobId: job.id,
+        companyId: job.companyId,
+        candidateId: candidate.id,
+        ip,
+        model: evaluation.model,
+        action: "apply_evaluate",
+        inputChars: normalizedCv.finalChars,
+        outputChars: evaluation.outputChars,
+        cvWasTruncated: normalizedCv.wasTruncated,
+        status: evaluation.status,
+        errorMessage: evaluation.errorMessage,
+      });
+    }
+  } catch (error) {
+    console.error("apply-optional-ai:error", error);
+    await logAiUsage({
+      jobId: job.id,
+      companyId: job.companyId,
+      candidateId: candidate.id,
+      ip,
+      model: "unknown",
+      action: "apply_evaluate",
+      inputChars: normalizedCv.finalChars,
+      outputChars: 0,
+      cvWasTruncated: normalizedCv.wasTruncated,
+      status: "error",
+      errorMessage: error instanceof Error ? error.message : "unknown error",
+    });
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/jobs");
