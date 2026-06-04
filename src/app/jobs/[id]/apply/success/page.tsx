@@ -16,8 +16,8 @@ export default async function ApplySuccessPage({
 
   const title = duplicate ? "Ya tenemos tu postulacion" : "Postulacion enviada";
   const message = duplicate
-    ? "Ya habiamos recibido tu postulacion para este cargo."
-    : "Tu postulacion fue recibida correctamente. El equipo de RRHH revisara tu informacion pronto.";
+    ? "Ya existe una postulacion registrada con este correo para esta oferta."
+    : "Tu postulacion fue enviada correctamente. El equipo de reclutamiento podra revisar tu informacion.";
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-xl items-center px-4 py-10">

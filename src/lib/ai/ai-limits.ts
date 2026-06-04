@@ -17,10 +17,23 @@ export const GEMINI_TIMEOUT_MS = 25_000;
 export const GEMINI_MAX_RETRIES = 1;
 export const GEMINI_RETRY_BACKOFF_MS = 800;
 
+// --- Configuracion de OpenRouter ---
+export const OPENROUTER_DEFAULT_MODEL =
+  "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
+export const OPENROUTER_MAX_TOKENS = 1200;
+export const OPENROUTER_TEMPERATURE = 0;
+export const OPENROUTER_TOP_P = 1;
+export const OPENROUTER_SEED = 4731;
+
+// --- Timeout / retry de OpenRouter ---
+export const OPENROUTER_TIMEOUT_MS = 25_000;
+export const OPENROUTER_MAX_RETRIES = 1;
+export const OPENROUTER_RETRY_BACKOFF_MS = 800;
+
 // --- Rate limit del endpoint publico de apply ---
-export const RL_PER_JOB_LIMIT = 5;
+export const RL_PER_JOB_LIMIT = 20;
 export const RL_PER_JOB_WINDOW_MS = 10 * 60 * 1000; // 10 min
-export const RL_GLOBAL_IP_LIMIT = 20;
+export const RL_GLOBAL_IP_LIMIT = 100;
 export const RL_GLOBAL_IP_WINDOW_MS = 60 * 60 * 1000; // 1 hora
 
 // --- Cuota diaria de analisis IA ---

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 
+import { logAiDebug, logAiError } from "@/lib/ai/ai-debug-logger";
 import { prisma } from "@/lib/prisma/prisma";
 import type { AiUsageStatus } from "@/lib/ai/ai-limits";
 
@@ -24,6 +25,18 @@ export type AiUsageLogInput = {
  */
 export async function logAiUsage(input: AiUsageLogInput): Promise<void> {
   try {
+    logAiDebug("ai-usage-log:create-start", {
+      model: input.model,
+      action: input.action,
+      jobId: input.jobId,
+      candidateId: input.candidateId,
+      inputChars: input.inputChars,
+      outputChars: input.outputChars,
+      cvWasTruncated: input.cvWasTruncated,
+      status: input.status,
+      hasErrorMessage: Boolean(input.errorMessage),
+    });
+
     await prisma.aiUsageLog.create({
       data: {
         userId: input.userId ?? null,
@@ -40,11 +53,21 @@ export async function logAiUsage(input: AiUsageLogInput): Promise<void> {
         errorMessage: input.errorMessage ?? null,
       },
     });
+
+    logAiDebug("ai-usage-log:create-success", {
+      model: input.model,
+      action: input.action,
+      status: input.status,
+    });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error("ai-usage-logger:prisma-error", error.code, error.message);
-    } else {
-      console.error("ai-usage-logger:error", error);
-    }
+    logAiError("ai-usage-log:create-error", error, {
+      model: input.model,
+      action: input.action,
+      status: input.status,
+      prismaCode:
+        error instanceof Prisma.PrismaClientKnownRequestError
+          ? error.code
+          : undefined,
+    });
   }
 }
